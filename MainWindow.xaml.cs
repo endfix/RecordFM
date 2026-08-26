@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Record.Models;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,7 +24,7 @@ namespace Record
         private StationModel _selectedStation;
 
         // WasapiOut?
-        private readonly WaveOutEvent _player = new ();
+        private readonly WaveOutEvent _player = new();
 
         private System.Windows.Forms.NotifyIcon _tray;
 
@@ -36,6 +37,11 @@ namespace Record
         private PreferencesModel _preferences;
 
         private bool _manualChangeEqualizer = true;
+
+        private readonly HttpClient _httpClient = new(new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli })
+        {
+            Timeout = TimeSpan.FromMinutes(10)
+        };
 
         public MainWindow()
         {
@@ -177,37 +183,35 @@ namespace Record
         {
             try
             {
-                using (var client = new HttpClient())
+                using var response = await _httpClient.GetAsync("https://www.radiorecord.ru/api/stations/");
+
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                var model = JsonConvert.DeserializeObject<StationsModel>(json);
+
+                //Debug.WriteLine("debug: " + JsonConvert.SerializeObject(model, Formatting.Indented));
+
+                _stationList = model.Result.Stations;
+                _stationList.ForEach(st =>
                 {
-                    client.Timeout = TimeSpan.FromMinutes(10);
-
-                    var response = await client.GetAsync("https://www.radiorecord.ru/api/stations/");
-
-                    var json = await response.Content.ReadAsStringAsync();
-
-                    var model = JsonConvert.DeserializeObject<StationsModel>(json);
-
-                    //Debug.WriteLine("debug: " + JsonConvert.SerializeObject(model, Formatting.Indented));
-
-                    _stationList = model.Result.Stations;
-                    _stationList.ForEach(st =>
+                    ComboBox1.Items.Add(new ComboBoxItem
                     {
-                        ComboBox1.Items.Add(new ComboBoxItem
-                        {
-                            Text = st.Title,
-                            Value = st.Id,
-                        });
+                        Text = st.Title,
+                        Value = st.Id,
                     });
-                    ComboBox1.SelectedIndex = 0;
+                });
+                ComboBox1.SelectedIndex = 0;
 
-                    _ = Task.Run(async () => {
-                        while (true)
-                        {
-                            await LoadStationsNow();
-                            await Task.Delay(TimeSpan.FromSeconds(5));
-                        }
-                    });
-                }
+                _ = Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        await LoadStationsNow();
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+                    }
+                });
             }
             catch (Exception e)
             {
@@ -219,31 +223,30 @@ namespace Record
         {
             try
             {
-                using (var client = new HttpClient()) {
-                    var response = await client.GetAsync("https://www.radiorecord.ru/api/stations/now/");
+                var response = await _httpClient.GetAsync("https://www.radiorecord.ru/api/stations/now/");
+                var json = await response.Content.ReadAsStringAsync();
+                var model = JsonConvert.DeserializeObject<StationsNowModel>(json);
+                var track = model.Result.SingleOrDefault(station => station.Id == _selectedStation.Id).Track;
 
-                    var json = await response.Content.ReadAsStringAsync();
-
-                    var model = JsonConvert.DeserializeObject<StationsNowModel>(json);
-
-                    var track = model.Result.SingleOrDefault(station => station.Id == _selectedStation.Id).Track;
-
-                    _ = Task.Run(() =>
+                _ = Task.Run(() =>
+                {
+                    Dispatcher.Invoke(() =>
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            var trackImageUrl = track.Image100.StartsWith("http") 
-                                ? track.Image100 
-                                : "https://www.radiorecord.ru" + track.Image100;
+                        var trackImageUrl = track.Image100.StartsWith("http")
+                            ? track.Image100
+                            : "https://www.radiorecord.ru" + track.Image100;
 
-                            TrackImage.Source = GetImageSourceByUrl(trackImageUrl);
-                            TrackImage.Tag = track.ShareUrl;
+                        TrackImage.Source = GetImageSourceByUrl(trackImageUrl);
+                        TrackImage.Tag = track.ShareUrl;
 
-                            Song.Content = track.Song;
-                            Artist.Content = track.Artist;
-                        });
+                        Song.Content = track.Song;
+                        Artist.Content = track.Artist;
                     });
-                }
+                });
+            }
+            catch (JsonReaderException)
+            {
+                //
             }
             catch (Exception e)
             {
@@ -305,7 +308,7 @@ namespace Record
 
         private void VolumeValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            _player.Volume = (float) Volume.Value / 10;
+            _player.Volume = (float)Volume.Value / 10;
         }
 
         private async void ComboBox2_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -376,6 +379,13 @@ namespace Record
 
                     using (var reader = new MediaFoundationReader(url))
                     {
+                        /*var meter = new MeteringSampleProvider(reader.ToSampleProvider());
+                        meter.StreamVolume += (sender, e) =>
+                        {
+                            Debug.WriteLine("volume: {0} - {1}", e.MaxSampleValues[0], e.MaxSampleValues[1]);
+                        };
+                        var provider = new SampleToWaveProvider(meter);*/
+
                         _equalizer = new Equalizer(reader.ToSampleProvider(), _equalizerBandList);
 
                         _player.Init(_equalizer);
@@ -442,11 +452,6 @@ namespace Record
             Band8Gain.Value = _equalizerBandList.SingleOrDefault(band => band.Name == "Band8").Gain;
 
             _manualChangeEqualizer = true;
-        }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            
         }
 
         private void Reset_Click(object sender, RoutedEventArgs e)
