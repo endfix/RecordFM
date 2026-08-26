@@ -40,7 +40,7 @@
             <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <ComboBox x:Name="ComboBox1" Width="123" SelectionChanged="ComboBox1_SelectionChanged" DockPanel.Dock="Top" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,5"/>
                 <ComboBox x:Name="ComboBox2" Width="123" SelectionChanged="ComboBox2_SelectionChanged" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,5" />
-                <Slider Name="Volume" Width="122" Maximum="10" LargeChange="2" SmallChange="1" Value="5" TickPlacement="TopLeft" ValueChanged="VolumeValueChanged" Background="{x:Null}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <Slider Name="Volume" Width="122" Maximum="10" LargeChange="2" SmallChange="1" Value="5" ValueChanged="VolumeValueChanged" Background="{x:Null}" HorizontalAlignment="Left" VerticalAlignment="Center" BorderBrush="{x:Null}" TickPlacement="BottomRight" Foreground="White"/>
             </StackPanel>
             <Border Grid.Row="0" Grid.Column="2" Height="100" Width="100" Background="#66000000" CornerRadius="100,100,100,100" HorizontalAlignment="Right">
                 <Image x:Name="Image2" Height="100" Width="100" MouseLeftButtonDown="PlayStop_MouseLeftButtonDown" MouseEnter="PlayStop_MouseEnter" MouseLeave="PlayStop_MouseLeave" />
@@ -52,7 +52,7 @@
                         <ColumnDefinition Width="*"></ColumnDefinition>
                     </Grid.ColumnDefinitions>
                     <Border Grid.Row="0" Grid.Column="0" Height="50" Width="50" CornerRadius="10" HorizontalAlignment="Left" Background="#66000000">
-                        <Image x:Name="TrackImage" Height="50" Width="50" MouseLeftButtonDown="ClickTrackImage" Tag="url" />
+                        <Image x:Name="TrackImage" Height="50" Width="50" MouseLeftButtonDown="ClickTrackImage" Tag="url" Cursor="Hand" />
                     </Border>
                     <StackPanel Grid.Row="0" Grid.Column="1">
                         <Label Name="Song" Content="Reserved - song" Foreground="White" FontFamily="Courier New" FontSize="16" Background="{x:Null}" />
