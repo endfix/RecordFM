@@ -17,6 +17,7 @@
 mono_crash.*
 
 # Build results
+/RecordFM.zip
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
